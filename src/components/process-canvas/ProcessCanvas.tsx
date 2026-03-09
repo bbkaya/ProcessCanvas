@@ -10,7 +10,6 @@ import type {
   KeyPartner,
   KeyPolicyRegulation,
   KeyResource,
-  OtherBeneficiary,
   ProcessCanvasBlueprint,
   ResponsibilityPoint,
   ValueItem,
