@@ -1117,7 +1117,7 @@ export default function ProcessCanvas({ blueprint, onChange, showHelpPanel = tru
                     textAlign: "left",
                   }}
                 >
-                  Help ‹
+                  Help ‹‹
                 </button>
 
                 <div style={{ padding: 12, display: "grid", gap: 10, fontSize: 13, color: "#334155", lineHeight: 1.45 }}>
@@ -1175,7 +1175,7 @@ export default function ProcessCanvas({ blueprint, onChange, showHelpPanel = tru
                 }}
                 aria-label="Open help panel"
               >
-                Help ›
+                Help ››
               </button>
             )}
           </aside>
