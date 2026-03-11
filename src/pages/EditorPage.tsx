@@ -1,6 +1,7 @@
+import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { Link } from "react-router-dom";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
-import { useMemo, useRef, useState } from "react";
 import ProcessCanvas from "../components/process-canvas/ProcessCanvas";
 import {
   deepClonePCB,
@@ -9,154 +10,131 @@ import {
   validateProcessCanvasBlueprint,
 } from "../processCanvas/processCanvasDomain";
 
-function downloadTextFile(filename: string, contents: string, mimeType: string) {
-  const blob = new Blob([contents], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+type ValidationIssue = { level: "error" | "warning"; message: string };
 
 export default function EditorPage() {
-  const [blueprint, setBlueprint] = useState<ProcessCanvasBlueprint>(makeBlankProcessCanvasBlueprint());
-  const [busy, setBusy] = useState(false);
+  const [blueprint, setBlueprint] = useState<ProcessCanvasBlueprint>(() => makeBlankProcessCanvasBlueprint());
+  const [validationOpen, setValidationOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const issues = useMemo(() => validateProcessCanvasBlueprint(blueprint), [blueprint]);
+  const issues = useMemo<ValidationIssue[]>(() => validateProcessCanvasBlueprint(blueprint), [blueprint]);
+
+  function setName(name: string) {
+    setBlueprint((prev) => ({ ...deepClonePCB(prev), meta: { ...prev.meta, name } }));
+  }
+
+  function newBlueprint() {
+    if (!window.confirm("Create a new blank Process Canvas Blueprint? Unsaved changes will be lost.")) return;
+    setBlueprint(makeBlankProcessCanvasBlueprint());
+  }
+
+  function exportJson() {
+    const blob = new Blob([JSON.stringify(blueprint, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeFileName(blueprint.meta.name || "process-canvas")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function exportPng() {
-    const node = document.getElementById("process-canvas-export-root");
-    if (!node) return;
-
-    setBusy(true);
+    if (!exportRef.current) return;
+    setMenuOpen(false);
+    setIsExporting(true);
     try {
-      const dataUrl = await toPng(node, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
-      });
-
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      const dataUrl = await toPng(exportRef.current, { cacheBust: true, pixelRatio: 2 });
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = `${blueprint.meta.name || "process-canvas"}.png`;
+      a.download = `${safeFileName(blueprint.meta.name || "process-canvas")}.png`;
       a.click();
     } finally {
-      setBusy(false);
+      setIsExporting(false);
     }
   }
 
   async function exportPdf() {
-    const node = document.getElementById("process-canvas-export-root");
-    if (!node) return;
-
-    setBusy(true);
+    if (!exportRef.current) return;
+    setMenuOpen(false);
+    setIsExporting(true);
     try {
-      const dataUrl = await toPng(node, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
-      });
-
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      const dataUrl = await toPng(exportRef.current, { cacheBust: true, pixelRatio: 2 });
       const img = new Image();
       img.src = dataUrl;
-
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error("Image load failed"));
+      await new Promise((resolve) => {
+        img.onload = resolve;
       });
 
-      const pdf = new jsPDF({
-        orientation: img.width >= img.height ? "landscape" : "portrait",
-        unit: "px",
-        format: [img.width, img.height],
-      });
-
-      pdf.addImage(dataUrl, "PNG", 0, 0, img.width, img.height);
-      pdf.save(`${blueprint.meta.name || "process-canvas"}.pdf`);
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const ratio = Math.min(pageWidth / img.width, pageHeight / img.height);
+      const renderWidth = img.width * ratio;
+      const renderHeight = img.height * ratio;
+      const x = (pageWidth - renderWidth) / 2;
+      const y = (pageHeight - renderHeight) / 2;
+      pdf.addImage(dataUrl, "PNG", x, y, renderWidth, renderHeight);
+      pdf.save(`${safeFileName(blueprint.meta.name || "process-canvas")}.pdf`);
     } finally {
-      setBusy(false);
+      setIsExporting(false);
     }
-  }
-
-  function exportJson() {
-    downloadTextFile(
-      `${blueprint.meta.name || "process-canvas"}.json`,
-      JSON.stringify(blueprint, null, 2),
-      "application/json"
-    );
   }
 
   function importJsonFile(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(String(reader.result)) as ProcessCanvasBlueprint;
+        const parsed = JSON.parse(String(reader.result ?? "{}")) as ProcessCanvasBlueprint;
         setBlueprint(parsed);
       } catch {
-        alert("Invalid JSON file.");
+        window.alert("Could not read the JSON file.");
       }
     };
     reader.readAsText(file);
   }
 
   return (
-    <main style={{ padding: 20 }}>
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          marginBottom: 16,
-        }}
-      >
+    <main style={{ maxWidth: 1540, margin: "0 auto", padding: "18px 20px 28px" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>Blueprint name</div>
-          <input
-            value={blueprint.meta.name}
-            onChange={(e) =>
-              setBlueprint((prev) => ({
-                ...deepClonePCB(prev),
-                meta: {
-                  ...prev.meta,
-                  name: e.target.value,
-                  updatedAt: new Date().toISOString(),
-                },
-              }))
-            }
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              border: "1px solid #d1d5db",
-              borderRadius: 10,
-              padding: "10px 12px",
-              minWidth: 320,
-            }}
-          />
+          <div style={{ fontSize: 28, fontWeight: 800 }}>ProcessCanvas</div>
+          <div style={{ color: "#64748b", fontSize: 14 }}>Edit, validate, import, and export your blueprint.</div>
         </div>
-
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button type="button" onClick={() => setBlueprint(makeBlankProcessCanvasBlueprint())} disabled={busy}>
-            New
-          </button>
-          <button type="button" onClick={exportJson} disabled={busy}>
-            Export JSON
-          </button>
-          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={busy}>
-            Import JSON
-          </button>
-          <button type="button" onClick={exportPng} disabled={busy}>
-            Export PNG
-          </button>
-          <button type="button" onClick={exportPdf} disabled={busy}>
-            Export PDF
-          </button>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <Link to="/" style={{ color: "#334155", textDecoration: "none", fontWeight: 700 }}>Back</Link>
+          <button type="button" onClick={newBlueprint} style={toolbarButton()}>New</button>
+          <div style={{ position: "relative" }}>
+            <button type="button" onClick={() => setMenuOpen((v) => !v)} style={toolbarButton(true)}>Export/Import ▾</button>
+            {menuOpen ? (
+              <div
+                data-export-exclude="true"
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  minWidth: 190,
+                  background: "#fff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 10,
+                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.12)",
+                  padding: 6,
+                  zIndex: 20,
+                }}
+              >
+                <button type="button" onClick={() => { setMenuOpen(false); fileInputRef.current?.click(); }} style={menuItemButton()}>Import JSON</button>
+                <button type="button" onClick={() => { setMenuOpen(false); exportJson(); }} style={menuItemButton()}>Export JSON</button>
+                <button type="button" onClick={() => { setMenuOpen(false); void exportPng(); }} style={menuItemButton()}>Export PNG</button>
+                <button type="button" onClick={() => { setMenuOpen(false); void exportPdf(); }} style={menuItemButton()}>Export PDF</button>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </header>
 
       <input
         ref={fileInputRef}
@@ -170,43 +148,127 @@ export default function EditorPage() {
         }}
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16, alignItems: "start" }}>
-        <div ref={exportRef}>
-          <ProcessCanvas blueprint={blueprint} onChange={setBlueprint} />
-        </div>
+      <div style={{ display: "grid", gap: 10 }}>
+        <section style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <label style={{ fontWeight: 700, color: "#334155" }}>Blueprint name</label>
+          <input
+            value={blueprint.meta.name}
+            onChange={(e) => setName(e.target.value)}
+            style={{
+              minWidth: 320,
+              maxWidth: 560,
+              width: "100%",
+              border: "1px solid #cbd5e1",
+              borderRadius: 10,
+              padding: "9px 12px",
+              font: "inherit",
+            }}
+          />
+        </section>
 
-        <aside
-          style={{
-            border: "1px solid #d1d5db",
-            borderRadius: 14,
-            padding: 14,
-            background: "#fff",
-            position: "sticky",
-            top: 16,
-          }}
-        >
-          <div style={{ fontWeight: 800, marginBottom: 10 }}>Validation</div>
-          {issues.length === 0 ? (
-            <div style={{ color: "#065f46" }}>No issues detected.</div>
+        <section style={{ border: "1px solid #d7dde5", borderRadius: 10, background: "#f8fafc", overflow: "hidden" }}>
+          {validationOpen ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => setValidationOpen(false)}
+                style={{
+                  width: "100%",
+                  border: "none",
+                  borderBottom: "1px solid #d7dde5",
+                  background: "#eef4f8",
+                  color: "#334155",
+                  cursor: "pointer",
+                  padding: "8px 12px",
+                  fontSize: 12,
+                  textAlign: "left",
+                  fontWeight: 700,
+                }}
+              >
+                Validation ▲ {issues.length > 0 ? `(${issues.length})` : ""}
+              </button>
+              <div style={{ padding: "10px 12px" }}>
+                {issues.length === 0 ? (
+                  <div style={{ color: "#065f46", fontSize: 14 }}>No issues detected.</div>
+                ) : (
+                  <ul style={{ paddingLeft: 18, margin: 0, color: "#334155", fontSize: 13, lineHeight: 1.4 }}>
+                    {issues.map((issue, i) => (
+                      <li key={i} style={{ marginBottom: 5 }}>
+                        <strong>{issue.level}:</strong> {issue.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           ) : (
-            <ul style={{ paddingLeft: 18, margin: 0 }}>
-              {issues.map((issue, i) => (
-                <li key={i} style={{ marginBottom: 8 }}>
-                  <strong>{issue.level}:</strong> {issue.message}
-                </li>
-              ))}
-            </ul>
+            <button
+              type="button"
+              onClick={() => setValidationOpen(true)}
+              style={{
+                width: "100%",
+                border: "none",
+                background: "#f8fafc",
+                color: "#475569",
+                cursor: "pointer",
+                padding: "8px 12px",
+                fontSize: 12,
+                textAlign: "left",
+                fontWeight: 700,
+              }}
+            >
+              Validation ▼ {issues.length > 0 ? `(${issues.length})` : ""}
+            </button>
           )}
+        </section>
 
-          <hr style={{ margin: "14px 0" }} />
-
-          <div style={{ fontWeight: 800, marginBottom: 8 }}>Notes</div>
-          <div style={{ fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
-            This MVP focuses on layout fidelity, canvas editing, and file import/export. Routing and landing/editor
-            separation are already in place.
+        <div ref={exportRef} style={{ display: "grid", gap: 12 }}>
+          <div
+            style={{
+              background: "#ffffff",
+              border: "1px solid #d7dde5",
+              borderRadius: 12,
+              padding: "12px 16px",
+            }}
+          >
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>
+              {blueprint.meta.name?.trim() || "Untitled Blueprint"}
+            </div>
           </div>
-        </aside>
+          <ProcessCanvas blueprint={blueprint} onChange={setBlueprint} showHelpPanel={!isExporting} />
+        </div>
       </div>
     </main>
   );
+}
+
+function toolbarButton(primary = false): CSSProperties {
+  return {
+    border: primary ? "1px solid #0d4678" : "1px solid #cbd5e1",
+    background: primary ? "#0d4678" : "#fff",
+    color: primary ? "#fff" : "#334155",
+    borderRadius: 10,
+    padding: "9px 12px",
+    cursor: "pointer",
+    fontWeight: 700,
+  };
+}
+
+function menuItemButton(): CSSProperties {
+  return {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    border: "none",
+    background: "transparent",
+    color: "#334155",
+    borderRadius: 8,
+    padding: "9px 10px",
+    cursor: "pointer",
+    fontWeight: 700,
+  };
+}
+
+function safeFileName(name: string): string {
+  return name.trim().replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "") || "process-canvas";
 }
