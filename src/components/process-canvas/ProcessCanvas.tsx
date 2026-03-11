@@ -345,7 +345,7 @@ function AutoGrowTextarea({
 
 function CommitField({
   value,
-  placeholder = "Click to edit",
+  placeholder = "...",
   dark = false,
   centered = false,
   multiline = false,
@@ -588,7 +588,7 @@ export default function ProcessCanvas({ blueprint, onChange, showHelpPanel = tru
                 <div style={bulletStyle(args.dark)}>•</div>
                 <CommitField
                   value={slotValue}
-                  placeholder="Click to edit"
+                  placeholder="..."
                   dark={args.dark}
                   multiline
                   onCommit={(nextValue) => {
@@ -650,7 +650,7 @@ export default function ProcessCanvas({ blueprint, onChange, showHelpPanel = tru
                         <div style={bulletStyle(args.dark)}>•</div>
                         <CommitField
                           value={slotValue}
-                          placeholder="Click to edit"
+                          placeholder="..."
                           dark={args.dark}
                           multiline
                           onCommit={(nextValue) => {

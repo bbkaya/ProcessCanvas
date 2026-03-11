@@ -142,18 +142,18 @@ export function makeBlankProcessCanvasBlueprint(): ProcessCanvasBlueprint {
       updatedAt: now,
     },
 
-    goals: [{ id: makeId("goal"), statement: "Click to edit" }],
+    goals: [{ id: makeId("goal"), statement: "..." }],
 
     desirability: {
-      purpose: "Click to edit",
-      customers: [{ id: makeId("cust"), name: "Click to edit" }],
+      purpose: "...",
+      customers: [{ id: makeId("cust"), name: "..." }],
       otherBeneficiaries: [],
       customerRelationships: [],
       customerChannels: [],
     },
 
     feasibility: {
-      keyActivities: [{ id: makeId("act"), description: "Click to edit" }],
+      keyActivities: [{ id: makeId("act"), description: "..." }],
       keyPartners: [],
       keyCapabilities: [],
       keyPoliciesRegulations: [],

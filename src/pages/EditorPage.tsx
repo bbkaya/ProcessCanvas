@@ -99,42 +99,93 @@ export default function EditorPage() {
   }
 
   return (
-  <SiteShell maxWidth={1540} contentStyle={{ paddingTop: 18 }}>
-
-<header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
-  <div>
-    <div style={{ fontSize: 22, fontWeight: 800 }}>Process Canvas Editor</div>
-  </div>
-  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-    <button type="button" onClick={newBlueprint} style={toolbarButton()}>New</button>
-    <div style={{ position: "relative" }}>
-      <button type="button" onClick={() => setMenuOpen((v) => !v)} style={toolbarButton(true)}>Export/Import ▾</button>
-      {menuOpen ? (
-        <div
-          data-export-exclude="true"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            right: 0,
-            minWidth: 190,
-            background: "#fff",
-            border: "1px solid #cbd5e1",
-            borderRadius: 10,
-            boxShadow: "0 8px 24px rgba(15, 23, 42, 0.12)",
-            padding: 6,
-            zIndex: 20,
-          }}
-        >
-          <button type="button" onClick={() => { setMenuOpen(false); void exportPng(); }} style={menuItemButton()}>Export PNG</button>
-          <button type="button" onClick={() => { setMenuOpen(false); void exportPdf(); }} style={menuItemButton()}>Export PDF</button>
-          <button type="button" onClick={() => { setMenuOpen(false); exportJson(); }} style={menuItemButton()}>Export JSON</button>
-          <div style={{ height: 1, background: "#eee", margin: "6px 0" }} />
-          <button type="button" onClick={() => { setMenuOpen(false); fileInputRef.current?.click(); }} style={menuItemButton()}>Import JSON</button>
+    <SiteShell maxWidth={1540} contentStyle={{ paddingTop: 18 }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          marginBottom: 14,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>Process Canvas Editor</div>
         </div>
-      ) : null}
-    </div>
-  </div>
-</header>
+
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button type="button" onClick={newBlueprint} style={toolbarButton()}>
+            New
+          </button>
+
+          <div style={{ position: "relative" }}>
+            <button type="button" onClick={() => setMenuOpen((v) => !v)} style={toolbarButton(true)}>
+              Export/Import ▾
+            </button>
+
+            {menuOpen ? (
+              <div
+                data-export-exclude="true"
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  minWidth: 190,
+                  background: "#fff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 10,
+                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.12)",
+                  padding: 6,
+                  zIndex: 20,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void exportPng();
+                  }}
+                  style={menuItemButton()}
+                >
+                  Export PNG
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void exportPdf();
+                  }}
+                  style={menuItemButton()}
+                >
+                  Export PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    exportJson();
+                  }}
+                  style={menuItemButton()}
+                >
+                  Export JSON
+                </button>
+                <div style={{ height: 1, background: "#eee", margin: "6px 0" }} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                  style={menuItemButton()}
+                >
+                  Import JSON
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </header>
 
       <input
         ref={fileInputRef}
@@ -149,23 +200,6 @@ export default function EditorPage() {
       />
 
       <div style={{ display: "grid", gap: 10 }}>
-        <section style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <label style={{ fontWeight: 700, color: "#334155" }}>Canvas name</label>
-          <input
-            value={blueprint.meta.name}
-            onChange={(e) => setName(e.target.value)}
-            style={{
-              minWidth: 320,
-              maxWidth: 560,
-              width: "100%",
-              border: "1px solid #cbd5e1",
-              borderRadius: 10,
-              padding: "9px 12px",
-              font: "inherit",
-            }}
-          />
-        </section>
-
         <section style={{ border: "1px solid #d7dde5", borderRadius: 10, background: "#f8fafc", overflow: "hidden" }}>
           {validationOpen ? (
             <div>
@@ -231,15 +265,30 @@ export default function EditorPage() {
               padding: "6px 10px",
             }}
           >
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a" }}>
-              {blueprint.meta.name?.trim() || "Untitled Blueprint"}
-            </div>
+            <input
+              value={blueprint.meta.name ?? ""}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Untitled Blueprint"
+              style={{
+                width: "100%",
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontSize: 20,
+                fontWeight: 800,
+                color: "#0f172a",
+                padding: 0,
+                margin: 0,
+                fontFamily: "inherit",
+              }}
+            />
           </div>
+
           <ProcessCanvas blueprint={blueprint} onChange={setBlueprint} showHelpPanel={!isExporting} />
         </div>
       </div>
-  </SiteShell>
-);
+    </SiteShell>
+  );
 }
 
 function toolbarButton(primary = false): CSSProperties {
