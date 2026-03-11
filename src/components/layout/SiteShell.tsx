@@ -135,7 +135,7 @@ function SiteHeader() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {location.pathname !== "/editor" ? (
             <Link to="/editor" style={{ ...actionButtonStyle(), background: "#0d4678", color: "#fff", borderColor: "#0d4678" }}>
-              Open editor
+              Create your Canvas
             </Link>
           ) : (
             <Link to="/" style={actionButtonStyle()}>

@@ -99,7 +99,7 @@ export default function LandingPage() {
                 fontWeight: 800,
               }}
             >
-              Open editor
+              Create your Canvas
             </Link>
             <button
               type="button"
