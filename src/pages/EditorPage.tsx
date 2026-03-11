@@ -126,10 +126,12 @@ export default function EditorPage() {
                   zIndex: 20,
                 }}
               >
-                <button type="button" onClick={() => { setMenuOpen(false); fileInputRef.current?.click(); }} style={menuItemButton()}>Import JSON</button>
-                <button type="button" onClick={() => { setMenuOpen(false); exportJson(); }} style={menuItemButton()}>Export JSON</button>
                 <button type="button" onClick={() => { setMenuOpen(false); void exportPng(); }} style={menuItemButton()}>Export PNG</button>
                 <button type="button" onClick={() => { setMenuOpen(false); void exportPdf(); }} style={menuItemButton()}>Export PDF</button>
+                <button type="button" onClick={() => { setMenuOpen(false); exportJson(); }} style={menuItemButton()}>Export JSON</button>
+                <div style={{ height: 1, background: "#eee", margin: "6px 0" }} />
+
+                <button type="button" onClick={() => { setMenuOpen(false); fileInputRef.current?.click(); }} style={menuItemButton()}>Import JSON</button>
               </div>
             ) : null}
           </div>
