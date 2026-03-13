@@ -142,11 +142,11 @@ export function makeBlankProcessCanvasBlueprint(): ProcessCanvasBlueprint {
       updatedAt: now,
     },
 
-    goals: [{ id: makeId("goal"), statement: "..." }],
+    goals: [{ id: makeId("goal"), statement: "" }],
 
     desirability: {
       purpose: "...",
-      customers: [{ id: makeId("cust"), name: "..." }],
+      customers: [{ id: makeId("cust"), name: "" }],
       otherBeneficiaries: [],
       customerRelationships: [],
       customerChannels: [],
@@ -183,23 +183,23 @@ export function validateProcessCanvasBlueprint(bp: ProcessCanvasBlueprint): Vali
   const issues: ValidationIssue[] = [];
 
   if (!bp.meta.name.trim()) {
-    issues.push({ level: "warning", message: "Blueprint name is empty." });
+    issues.push({ level: "warning", message: "Please provide a name for your Process Canvas Blueprint." });
   }
 
   if (!bp.desirability.purpose.trim()) {
-    issues.push({ level: "warning", message: "Purpose is empty." });
+    issues.push({ level: "warning", message: "Please provide a Purpose for the process. The Purpose represents the value this process creates for its customers and stakeholders." });
   }
 
   if (bp.goals.length === 0) {
-    issues.push({ level: "warning", message: "At least one Goal is recommended." });
+    issues.push({ level: "warning", message: "Please define one or more Goals for the process. A Goal represents the key operational outcomes the process should deliver consistently." });
   }
 
   if (bp.desirability.customers.length === 0) {
-    issues.push({ level: "warning", message: "At least one Customer is recommended." });
+    issues.push({ level: "warning", message: "Please define at least one Customer for the process. The customer is the main beneficiary of the value that the process creates." });
   }
 
   if (bp.feasibility.keyActivities.length === 0) {
-    issues.push({ level: "warning", message: "At least one Key Activity is recommended." });
+    issues.push({ level: "warning", message: "Please define at least one Key Activity for the process." });
   }
 
   return issues;

@@ -49,8 +49,8 @@ const BLACK = "#000000";
 
 const CELL = {
   border: "none",
-  padding: "8px 10px",
-  borderRadius: "8px",
+  padding: "4px 6px",
+  borderRadius: "6px",
 } as const;
 
 export const PROCESS_CANVAS_LAYOUT_V1: PCCanvasLayout = {
@@ -58,16 +58,16 @@ export const PROCESS_CANVAS_LAYOUT_V1: PCCanvasLayout = {
   name: "Process Canvas",
   columnCount: 22,
   rowCount: 8,
-  columnWidths: ["32px", ...Array(20).fill("1fr"), "32px"],
+  columnWidths: ["28px", ...Array(20).fill("1fr"), "28px"],
   rowHeights: [
-    "32px",
+    "28px",
     "minmax(84px, auto)",
     "minmax(128px, auto)",
     "minmax(112px, auto)",
     "minmax(56px, auto)",
     "minmax(56px, auto)",
     "minmax(56px, auto)",
-    "32px",
+    "28px",
   ],
   blocks: [
     {

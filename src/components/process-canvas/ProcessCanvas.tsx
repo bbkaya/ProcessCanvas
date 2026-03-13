@@ -68,9 +68,9 @@ type HelpContent = {
 const HELP_CONTENT: Record<string, HelpContent> = {
   purposeGoals: {
     title: "Purpose & Goals",
-    question: "What fundamental value does this process create, and what operational outcomes should it deliver consistently?",
+    question: "Purpose: What fundamental value does this process create for its customers and other beneficiaries? --- Goals: What operational outcomes should it deliver consistently?",
     subgroups: [
-      {
+     {
         label: "Purpose",
         examples: [
           "Enable seamless green mobility for every city commuter",
