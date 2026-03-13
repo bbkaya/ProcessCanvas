@@ -99,7 +99,7 @@ export default function EditorPage() {
   }
 
   return (
-    <SiteShell maxWidth={1540} contentStyle={{ paddingTop: 18 }}>
+    <SiteShell maxWidth={1200} contentStyle={{ paddingTop: 18 }}>
       <header
         style={{
           display: "flex",

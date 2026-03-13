@@ -332,7 +332,7 @@ export default function LandingPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              maxWidth: "min(1280px, 96vw)",
+              maxWidth: "min(1200px, 96vw)",
               maxHeight: "90vh",
               background: "#fff",
               borderRadius: 18,

@@ -526,16 +526,16 @@ export default function ProcessCanvas({ blueprint, onChange, showHelpPanel = tru
     onChange(next);
   };
 
-  const gridStyle: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: layout.columnWidths.join(" "),
-    gridTemplateRows: layout.rowHeights.join(" "),
-    width: "100%",
-    minWidth: 1220,
-    gap: 6,
-    background: "#ffffff",
-    alignItems: "stretch",
-  };
+const gridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: layout.columnWidths.join(" "),
+  gridTemplateRows: layout.rowHeights.join(" "),
+  width: "100%",
+  minWidth: 0,
+  gap: 6,
+  background: "#ffffff",
+  alignItems: "stretch",
+};
 
   function renderImageBand(id: keyof typeof SIDE_IMAGES, alt: string, vertical = false) {
     return (
@@ -1070,15 +1070,21 @@ export default function ProcessCanvas({ blueprint, onChange, showHelpPanel = tru
 
   return (
     <div style={{ overflowX: "auto", width: "100%" }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: showHelpPanel ? `minmax(1220px, 1fr) ${helpOpen ? "248px" : "34px"}` : "minmax(1220px, 1fr)",
-          gap: 12,
-          alignItems: "start",
-          transition: "grid-template-columns 180ms ease",
-        }}
-      >
+
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: showHelpPanel
+      ? helpOpen
+        ? "minmax(0, 1fr) 200px"
+        : "minmax(0, 1fr) 30px"
+      : "minmax(0, 1fr)",
+    gap: 12,
+    alignItems: "start",
+    transition: "grid-template-columns 180ms ease",
+  }}
+>
+
         <div id="process-canvas-export-root" style={gridStyle}>
           {renderedBlocks}
         </div>
@@ -1090,9 +1096,9 @@ export default function ProcessCanvas({ blueprint, onChange, showHelpPanel = tru
               position: "sticky",
               top: 12,
               alignSelf: "start",
-              width: helpOpen ? 248 : 34,
-              minWidth: helpOpen ? 248 : 34,
-              maxWidth: helpOpen ? 248 : 34,
+              width: helpOpen ? 200 : 30,
+              minWidth: helpOpen ? 200 : 30,
+              maxWidth: helpOpen ? 200 : 30,
               border: "1px solid #d7dde5",
               borderRadius: 12,
               background: "#ffffff",
@@ -1111,13 +1117,13 @@ export default function ProcessCanvas({ blueprint, onChange, showHelpPanel = tru
                     border: "none",
                     background: "#eef4f8",
                     color: "#0f172a",
-                    padding: "10px 12px",
+                    padding: "7px 7px",
                     cursor: "pointer",
-                    fontWeight: 800,
+                    fontWeight: 600,
                     textAlign: "left",
                   }}
                 >
-                  Help ‹‹
+                  Help ‹click to collapse››
                 </button>
 
                 <div style={{ padding: 12, display: "grid", gap: 10, fontSize: 13, color: "#334155", lineHeight: 1.45 }}>
@@ -1175,7 +1181,7 @@ export default function ProcessCanvas({ blueprint, onChange, showHelpPanel = tru
                 }}
                 aria-label="Open help panel"
               >
-                Help ››
+                Help ‹‹
               </button>
             )}
           </aside>
