@@ -12,25 +12,25 @@ const LOGO_SRC = `${BASE_URL}images/PClogo.png`;
 
 const CONTACTS = [
   {
-    name: "",
-    role: "",
-    org1: "",
+    name: "Prof. Dr. Michael Rosemann",
+    role: "Director of Centre for Future Enterprise",
+    org1: "Queensland University of Technology",
     org2: "",
-    email: "",
+    email: "m.rosemann@qut.edu.au",
   },
   {
-    name: "",
-    role: "",
-    org1: "",
+    name: "Prof. Dr. Oktay Turetken",
+    role: "Information Systems Group",
+    org1: "Eindhoven University of Technology",
     org2: "",
-    email: "",
+    email: "o.turetken@tue.nl",
   },
   {
-    name: "",
-    role: "",
-    org1: "",
+    name: "Prof. Dr. Christoph Buck",
+    role: "University of Applied Sciences Augsburg",
+    org1: "Queensland University of Technology, CFE",
     org2: "",
-    email: "",
+    email: "christoph.buck@fim-rc.de",
   },
 ];
 
