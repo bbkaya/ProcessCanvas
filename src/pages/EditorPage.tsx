@@ -14,6 +14,7 @@ import { aiDraftToProcessCanvasBlueprint } from "../processCanvas/processCanvasA
 
 type ValidationIssue = { level: "error" | "warning"; message: string };
 type CreationMode = "choice" | "description";
+type CreationIntent = "new" | "regenerate";
 
 const GENERATE_PROCESS_CANVAS_URL =
   "https://vhjpbucxegiavmmbuker.supabase.co/functions/v1/generate-process-canvas";
@@ -58,7 +59,9 @@ export default function EditorPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [creationOpen, setCreationOpen] = useState(openCreateDialogFromNavigation);
   const [creationMode, setCreationMode] = useState<CreationMode>("choice");
+  const [creationIntent, setCreationIntent] = useState<CreationIntent>("new");
   const [processDescription, setProcessDescription] = useState("");
+  const [aiSourceDescription, setAiSourceDescription] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showAIDraftNotice, setShowAIDraftNotice] = useState(false);
@@ -184,8 +187,21 @@ export default function EditorPage() {
 
   function openNewCanvasDialog() {
     if (!window.confirm("Start a new Process Canvas? Unsaved changes will be lost after you choose a creation option.")) return;
+    setCreationIntent("new");
     setCreationMode("choice");
     setProcessDescription("");
+    setGenerationError(null);
+    setTurnstileToken("");
+    setTurnstileReady(false);
+    setCreationOpen(true);
+  }
+
+  function openRegenerateDialog() {
+    if (!aiSourceDescription || isGenerating) return;
+
+    setCreationIntent("regenerate");
+    setCreationMode("description");
+    setProcessDescription(aiSourceDescription);
     setGenerationError(null);
     setTurnstileToken("");
     setTurnstileReady(false);
@@ -195,6 +211,7 @@ export default function EditorPage() {
   function closeCreationDialog() {
     if (isGenerating) return;
     setCreationOpen(false);
+    setCreationIntent("new");
     setCreationMode("choice");
     setProcessDescription("");
     setGenerationError(null);
@@ -204,6 +221,7 @@ export default function EditorPage() {
 
   function createBlankBlueprint() {
     setBlueprint(makeBlankProcessCanvasBlueprint());
+    setAiSourceDescription(null);
     setShowAIDraftNotice(false);
     closeCreationDialog();
   }
@@ -258,9 +276,11 @@ export default function EditorPage() {
 
       const generatedBlueprint = aiDraftToProcessCanvasBlueprint(result.draft);
       setBlueprint(generatedBlueprint);
+      setAiSourceDescription(description);
       setValidationOpen(false);
       setShowAIDraftNotice(true);
       setCreationOpen(false);
+      setCreationIntent("new");
       setCreationMode("choice");
       setProcessDescription("");
       setGenerationError(null);
@@ -338,6 +358,8 @@ export default function EditorPage() {
       try {
         const parsed = JSON.parse(String(reader.result ?? "{}")) as ProcessCanvasBlueprint;
         setBlueprint(parsed);
+        setAiSourceDescription(null);
+        setShowAIDraftNotice(false);
         setShowAIDraftNotice(false);
       } catch {
         window.alert("Could not read the JSON file.");
@@ -366,6 +388,17 @@ export default function EditorPage() {
           <button type="button" onClick={openNewCanvasDialog} style={toolbarButton()}>
             New
           </button>
+
+          {aiSourceDescription ? (
+            <button
+              type="button"
+              onClick={openRegenerateDialog}
+              style={toolbarButton()}
+              title="Review the original description and generate a fresh AI draft"
+            >
+              Regenerate
+            </button>
+          ) : null}
 
           <div style={{ position: "relative" }}>
             <button type="button" onClick={() => setMenuOpen((v) => !v)} style={toolbarButton(true)}>
@@ -468,10 +501,14 @@ export default function EditorPage() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}>
               <div>
                 <h2 id="new-canvas-title" style={{ margin: 0, fontSize: 24, color: "#0f172a" }}>
-                  Create a new Process Canvas
+                  {creationIntent === "regenerate"
+                    ? "Regenerate Process Canvas"
+                    : "Create a new Process Canvas"}
                 </h2>
                 <p style={{ margin: "8px 0 0", color: "#64748b", lineHeight: 1.55 }}>
-                  Start with an empty canvas or describe a process and let the application prepare a first draft.
+                  {creationIntent === "regenerate"
+                    ? "Review or revise the original description before generating a fresh draft."
+                    : "Start with an empty canvas or describe a process and let the application prepare a first draft."}
                 </p>
               </div>
               <button
@@ -503,13 +540,30 @@ export default function EditorPage() {
               </div>
             ) : (
               <div style={{ marginTop: 24 }}>
+                {creationIntent === "regenerate" ? (
+                  <div
+                    style={{
+                      marginBottom: 16,
+                      border: "1px solid #fed7aa",
+                      background: "#fff7ed",
+                      color: "#9a3412",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      fontSize: 13,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    <strong>Current canvas will be replaced.</strong> Your existing edits remain unchanged until the new draft is generated successfully.
+                  </div>
+                ) : null}
+
                 <label htmlFor="process-description" style={{ display: "block", fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
-                  Describe the process
+                  {creationIntent === "regenerate" ? "Review the process description" : "Describe the process"}
                 </label>
                 <p style={{ margin: "0 0 10px", color: "#64748b", fontSize: 14, lineHeight: 1.55 }}>
                   Explain the process idea or paste an existing textual description. Include whatever you know about its purpose,
                   customers or beneficiaries, main activities, actors, resources, impacts, constraints, or responsibilities.
-                  You do not need to structure the text.
+                  You do not need to structure the text, and you can leave genuinely unknown aspects out.
                 </p>
                 <textarea
                   id="process-description"
@@ -523,6 +577,7 @@ export default function EditorPage() {
                   aria-busy={isGenerating}
                   placeholder="For example: Customers apply online for a personal loan. The bank verifies identity and creditworthiness, makes a lending decision..."
                   rows={10}
+                  maxLength={12000}
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
@@ -538,6 +593,20 @@ export default function EditorPage() {
                     background: isGenerating ? "#f8fafc" : "#fff",
                   }}
                 />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginTop: 6,
+                    color: "#64748b",
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <span>More concrete context generally produces a better first draft.</span>
+                  <span>{processDescription.length.toLocaleString()} / 12,000</span>
+                </div>
 
                 <div
                   style={{
@@ -601,12 +670,16 @@ export default function EditorPage() {
                     onClick={() => {
                       if (isGenerating) return;
                       setGenerationError(null);
-                      setCreationMode("choice");
+                      if (creationIntent === "regenerate") {
+                        closeCreationDialog();
+                      } else {
+                        setCreationMode("choice");
+                      }
                     }}
                     disabled={isGenerating}
                     style={toolbarButton(false, isGenerating)}
                   >
-                    Back
+                    {creationIntent === "regenerate" ? "Cancel" : "Back"}
                   </button>
                   <button
                     type="button"
@@ -622,7 +695,11 @@ export default function EditorPage() {
                         isGenerating
                     )}
                   >
-                    {isGenerating ? "Generating…" : "Continue"}
+                    {isGenerating
+                      ? "Generating draft…"
+                      : creationIntent === "regenerate"
+                        ? "Regenerate & Replace Canvas"
+                        : "Create Draft"}
                   </button>
                 </div>
               </div>
@@ -660,25 +737,46 @@ export default function EditorPage() {
               lineHeight: 1.45,
             }}
           >
-            <div>
+            <div style={{ flex: 1 }}>
               <strong>AI-generated draft.</strong> Review and refine the suggested elements. Empty fields indicate information that could not be reliably derived from the description.
             </div>
-            <button
-              type="button"
-              onClick={() => setShowAIDraftNotice(false)}
-              aria-label="Dismiss AI draft notice"
-              style={{
-                border: "none",
-                background: "transparent",
-                color: "#1e3a5f",
-                cursor: "pointer",
-                fontSize: 18,
-                lineHeight: 1,
-                padding: 0,
-              }}
-            >
-              ×
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {aiSourceDescription ? (
+                <button
+                  type="button"
+                  onClick={openRegenerateDialog}
+                  style={{
+                    border: "1px solid #93c5fd",
+                    background: "#ffffff",
+                    color: "#1d4ed8",
+                    borderRadius: 8,
+                    padding: "6px 9px",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Regenerate from description
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setShowAIDraftNotice(false)}
+                aria-label="Dismiss AI draft notice"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "#1e3a5f",
+                  cursor: "pointer",
+                  fontSize: 18,
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+            </div>
           </div>
         ) : null}
 
