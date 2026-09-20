@@ -12,25 +12,25 @@ const LOGO_SRC = `${BASE_URL}images/PClogo.png`;
 
 const CONTACTS = [
   {
-    name: "Prof. Dr. Michael Rosemann",
-    role: "Director of Centre for Future Enterprise",
-    org1: "Queensland University of Technology",
+    name: "",
+    role: "",
+    org1: "",
     org2: "",
-    email: "m.rosemann@qut.edu.au",
+    email: "",
   },
   {
-    name: "Prof. Dr. Oktay Turetken",
-    role: "Information Systems Group",
-    org1: "Eindhoven University of Technology",
+    name: "",
+    role: "",
+    org1: "",
     org2: "",
-    email: "o.turetken@tue.nl",
+    email: "",
   },
   {
-    name: "Prof. Dr. Christoph Buck",
-    role: "University of Applied Sciences Augsburg",
-    org1: "Queensland University of Technology, CFE",
+    name: "",
+    role: "",
+    org1: "",
     org2: "",
-    email: "christoph.buck@fim-rc.de",
+    email: "",
   },
 ];
 
@@ -134,7 +134,11 @@ function SiteHeader() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {location.pathname !== "/editor" ? (
-            <Link to="/editor" style={{ ...actionButtonStyle(), background: "#0d4678", color: "#fff", borderColor: "#0d4678" }}>
+            <Link
+              to="/editor"
+              state={{ openCreateDialog: true }}
+              style={{ ...actionButtonStyle(), background: "#0d4678", color: "#fff", borderColor: "#0d4678" }}
+            >
               Create your Canvas
             </Link>
           ) : (
@@ -159,7 +163,7 @@ function SiteFooter() {
     >
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "20px 20px 22px" }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: "#1e293b", marginBottom: 6 }}>
-          Process Canvas ©2026
+          Process Canvas ©2025
         </div>
         <div
           style={{

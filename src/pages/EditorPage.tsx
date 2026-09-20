@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useLocation } from "react-router-dom";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import ProcessCanvas from "../components/process-canvas/ProcessCanvas";
@@ -9,16 +10,171 @@ import {
   type ProcessCanvasBlueprint,
   validateProcessCanvasBlueprint,
 } from "../processCanvas/processCanvasDomain";
+import { aiDraftToProcessCanvasBlueprint } from "../processCanvas/processCanvasAI";
 
 type ValidationIssue = { level: "error" | "warning"; message: string };
+type CreationMode = "choice" | "description";
+
+const GENERATE_PROCESS_CANVAS_URL =
+  "https://vhjpbucxegiavmmbuker.supabase.co/functions/v1/generate-process-canvas";
+
+const TURNSTILE_SITE_KEY = "0x4AAAAAAE9_pptUbJzlJxLO";
+const TURNSTILE_SCRIPT_ID = "process-canvas-turnstile-script";
+
+type TurnstileApi = {
+  render: (
+    container: HTMLElement,
+    options: {
+      sitekey: string;
+      action?: string;
+      theme?: "auto" | "light" | "dark";
+      size?: "normal" | "compact" | "flexible";
+      callback: (token: string) => void;
+      "error-callback"?: () => void;
+      "expired-callback"?: () => void;
+      "timeout-callback"?: () => void;
+    }
+  ) => string;
+  reset: (widgetId: string) => void;
+  remove: (widgetId: string) => void;
+};
+
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
 
 export default function EditorPage() {
+  const location = useLocation();
+  const openCreateDialogFromNavigation = Boolean(
+    (location.state as { openCreateDialog?: boolean } | null)?.openCreateDialog
+  );
   const [blueprint, setBlueprint] = useState<ProcessCanvasBlueprint>(() => makeBlankProcessCanvasBlueprint());
   const [validationOpen, setValidationOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [creationOpen, setCreationOpen] = useState(openCreateDialogFromNavigation);
+  const [creationMode, setCreationMode] = useState<CreationMode>("choice");
+  const [processDescription, setProcessDescription] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [showAIDraftNotice, setShowAIDraftNotice] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+  const turnstileWidgetIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!creationOpen || creationMode !== "description") {
+      setTurnstileToken("");
+      setTurnstileReady(false);
+
+      if (turnstileWidgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(turnstileWidgetIdRef.current);
+        turnstileWidgetIdRef.current = null;
+      }
+      return;
+    }
+
+    let cancelled = false;
+    let retryTimer: number | null = null;
+
+    const renderWidget = () => {
+      if (
+        cancelled ||
+        !turnstileContainerRef.current ||
+        !window.turnstile ||
+        turnstileWidgetIdRef.current
+      ) {
+        return;
+      }
+
+      turnstileWidgetIdRef.current = window.turnstile.render(
+        turnstileContainerRef.current,
+        {
+          sitekey: TURNSTILE_SITE_KEY,
+          action: "generate_process_canvas",
+          theme: "light",
+          size: "flexible",
+          callback: (token) => {
+            setTurnstileToken(token);
+            setTurnstileReady(true);
+            setGenerationError(null);
+          },
+          "expired-callback": () => {
+            setTurnstileToken("");
+            setTurnstileReady(false);
+          },
+          "timeout-callback": () => {
+            setTurnstileToken("");
+            setTurnstileReady(false);
+          },
+          "error-callback": () => {
+            setTurnstileToken("");
+            setTurnstileReady(false);
+            setGenerationError(
+              "Human verification could not be completed. Please try again."
+            );
+          },
+        }
+      );
+    };
+
+    const waitForTurnstile = () => {
+      if (cancelled) return;
+      if (window.turnstile) {
+        renderWidget();
+        return;
+      }
+      retryTimer = window.setTimeout(waitForTurnstile, 100);
+    };
+
+    const existingScript = document.getElementById(
+      TURNSTILE_SCRIPT_ID
+    ) as HTMLScriptElement | null;
+
+    if (existingScript) {
+      waitForTurnstile();
+    } else {
+      const script = document.createElement("script");
+      script.id = TURNSTILE_SCRIPT_ID;
+      script.src =
+        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      script.onload = waitForTurnstile;
+      script.onerror = () => {
+        if (!cancelled) {
+          setGenerationError(
+            "Human verification could not be loaded. Please check your connection and try again."
+          );
+        }
+      };
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      cancelled = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+
+      if (turnstileWidgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(turnstileWidgetIdRef.current);
+        turnstileWidgetIdRef.current = null;
+      }
+    };
+  }, [creationOpen, creationMode]);
+
+  function resetTurnstile() {
+    setTurnstileToken("");
+    setTurnstileReady(false);
+
+    if (turnstileWidgetIdRef.current && window.turnstile) {
+      window.turnstile.reset(turnstileWidgetIdRef.current);
+    }
+  }
 
   const issues = useMemo<ValidationIssue[]>(() => validateProcessCanvasBlueprint(blueprint), [blueprint]);
 
@@ -26,9 +182,100 @@ export default function EditorPage() {
     setBlueprint((prev) => ({ ...deepClonePCB(prev), meta: { ...prev.meta, name } }));
   }
 
-  function newBlueprint() {
-    if (!window.confirm("Create a new blank Process Canvas Blueprint? Unsaved changes will be lost.")) return;
+  function openNewCanvasDialog() {
+    if (!window.confirm("Start a new Process Canvas? Unsaved changes will be lost after you choose a creation option.")) return;
+    setCreationMode("choice");
+    setProcessDescription("");
+    setGenerationError(null);
+    setTurnstileToken("");
+    setTurnstileReady(false);
+    setCreationOpen(true);
+  }
+
+  function closeCreationDialog() {
+    if (isGenerating) return;
+    setCreationOpen(false);
+    setCreationMode("choice");
+    setProcessDescription("");
+    setGenerationError(null);
+    setTurnstileToken("");
+    setTurnstileReady(false);
+  }
+
+  function createBlankBlueprint() {
     setBlueprint(makeBlankProcessCanvasBlueprint());
+    setShowAIDraftNotice(false);
+    closeCreationDialog();
+  }
+
+  async function continueFromDescription() {
+    const description = processDescription.trim();
+    if (description.length < 10 || !turnstileToken || isGenerating) return;
+
+    setGenerationError(null);
+    setIsGenerating(true);
+
+    try {
+      const response = await fetch(GENERATE_PROCESS_CANVAS_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          processDescription: description,
+          turnstileToken,
+        }),
+      });
+
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new Error("The AI service returned an unreadable response.");
+      }
+
+      const result = payload as {
+        ok?: boolean;
+        draft?: unknown;
+        error?: string;
+        details?: unknown;
+      };
+
+      if (!response.ok || result.ok !== true || !result.draft) {
+        let message = result.error || "Could not generate the Process Canvas.";
+
+        if (result.details && typeof result.details === "object") {
+          const details = result.details as { message?: unknown };
+          if (typeof details.message === "string" && details.message.trim()) {
+            message += ` ${details.message.trim()}`;
+          }
+        } else if (typeof result.details === "string" && result.details.trim()) {
+          message += ` ${result.details.trim()}`;
+        }
+
+        throw new Error(message);
+      }
+
+      const generatedBlueprint = aiDraftToProcessCanvasBlueprint(result.draft);
+      setBlueprint(generatedBlueprint);
+      setValidationOpen(false);
+      setShowAIDraftNotice(true);
+      setCreationOpen(false);
+      setCreationMode("choice");
+      setProcessDescription("");
+      setGenerationError(null);
+      setTurnstileToken("");
+      setTurnstileReady(false);
+    } catch (error) {
+      resetTurnstile();
+      setGenerationError(
+        error instanceof Error
+          ? error.message
+          : "Could not generate the Process Canvas. Please try again."
+      );
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   function exportJson() {
@@ -91,6 +338,7 @@ export default function EditorPage() {
       try {
         const parsed = JSON.parse(String(reader.result ?? "{}")) as ProcessCanvasBlueprint;
         setBlueprint(parsed);
+        setShowAIDraftNotice(false);
       } catch {
         window.alert("Could not read the JSON file.");
       }
@@ -115,7 +363,7 @@ export default function EditorPage() {
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <button type="button" onClick={newBlueprint} style={toolbarButton()}>
+          <button type="button" onClick={openNewCanvasDialog} style={toolbarButton()}>
             New
           </button>
 
@@ -187,6 +435,202 @@ export default function EditorPage() {
         </div>
       </header>
 
+      {creationOpen ? (
+        <div
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeCreationDialog();
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            background: "rgba(15, 23, 42, 0.48)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-canvas-title"
+            style={{
+              width: "min(720px, 100%)",
+              background: "#ffffff",
+              borderRadius: 16,
+              border: "1px solid #dbe3ec",
+              boxShadow: "0 24px 70px rgba(15, 23, 42, 0.24)",
+              padding: 24,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}>
+              <div>
+                <h2 id="new-canvas-title" style={{ margin: 0, fontSize: 24, color: "#0f172a" }}>
+                  Create a new Process Canvas
+                </h2>
+                <p style={{ margin: "8px 0 0", color: "#64748b", lineHeight: 1.55 }}>
+                  Start with an empty canvas or describe a process and let the application prepare a first draft.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreationDialog}
+                aria-label="Close"
+                disabled={isGenerating}
+                style={closeButtonStyle(isGenerating)}
+              >
+                ×
+              </button>
+            </div>
+
+            {creationMode === "choice" ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14, marginTop: 24 }}>
+                <button type="button" onClick={createBlankBlueprint} style={creationCardStyle()}>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>Blank Canvas</span>
+                  <span style={{ color: "#64748b", lineHeight: 1.5 }}>
+                    Open an empty Process Canvas and complete the elements yourself.
+                  </span>
+                </button>
+
+                <button type="button" onClick={() => setCreationMode("description")} style={creationCardStyle()}>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>Create from Description</span>
+                  <span style={{ color: "#64748b", lineHeight: 1.5 }}>
+                    Describe the process in your own words and generate an initial Process Canvas draft.
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginTop: 24 }}>
+                <label htmlFor="process-description" style={{ display: "block", fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
+                  Describe the process
+                </label>
+                <p style={{ margin: "0 0 10px", color: "#64748b", fontSize: 14, lineHeight: 1.55 }}>
+                  Explain the process idea or paste an existing textual description. Include whatever you know about its purpose,
+                  customers or beneficiaries, main activities, actors, resources, impacts, constraints, or responsibilities.
+                  You do not need to structure the text.
+                </p>
+                <textarea
+                  id="process-description"
+                  autoFocus
+                  value={processDescription}
+                  onChange={(e) => {
+                    setProcessDescription(e.target.value);
+                    if (generationError) setGenerationError(null);
+                  }}
+                  disabled={isGenerating}
+                  aria-busy={isGenerating}
+                  placeholder="For example: Customers apply online for a personal loan. The bank verifies identity and creditworthiness, makes a lending decision..."
+                  rows={10}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    resize: "vertical",
+                    minHeight: 190,
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 10,
+                    padding: 12,
+                    outline: "none",
+                    font: "inherit",
+                    lineHeight: 1.55,
+                    color: "#0f172a",
+                    background: isGenerating ? "#f8fafc" : "#fff",
+                  }}
+                />
+
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: "10px 0 2px",
+                    minHeight: 66,
+                  }}
+                >
+                  <div
+                    ref={turnstileContainerRef}
+                    aria-label="Human verification"
+                  />
+                  {!turnstileReady && !generationError ? (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        color: "#64748b",
+                        fontSize: 12,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      Completing human verification…
+                    </div>
+                  ) : null}
+                </div>
+
+                {generationError ? (
+                  <div
+                    role="alert"
+                    style={{
+                      marginTop: 12,
+                      border: "1px solid #fecaca",
+                      background: "#fef2f2",
+                      color: "#991b1b",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      fontSize: 13,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {generationError}
+                  </div>
+                ) : null}
+
+                {isGenerating ? (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      color: "#475569",
+                      fontSize: 13,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    Generating the Process Canvas draft. This may take a few seconds.
+                  </div>
+                ) : null}
+
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isGenerating) return;
+                      setGenerationError(null);
+                      setCreationMode("choice");
+                    }}
+                    disabled={isGenerating}
+                    style={toolbarButton(false, isGenerating)}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void continueFromDescription()}
+                    disabled={
+                      processDescription.trim().length < 10 ||
+                      !turnstileToken ||
+                      isGenerating
+                    }
+                    style={primaryActionButtonStyle(
+                      processDescription.trim().length < 10 ||
+                        !turnstileToken ||
+                        isGenerating
+                    )}
+                  >
+                    {isGenerating ? "Generating…" : "Continue"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
+
       <input
         ref={fileInputRef}
         type="file"
@@ -200,6 +644,44 @@ export default function EditorPage() {
       />
 
       <div style={{ display: "grid", gap: 10 }}>
+        {showAIDraftNotice ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "start",
+              border: "1px solid #bfdbfe",
+              background: "#eff6ff",
+              color: "#1e3a5f",
+              borderRadius: 10,
+              padding: "10px 12px",
+              fontSize: 13,
+              lineHeight: 1.45,
+            }}
+          >
+            <div>
+              <strong>AI-generated draft.</strong> Review and refine the suggested elements. Empty fields indicate information that could not be reliably derived from the description.
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAIDraftNotice(false)}
+              aria-label="Dismiss AI draft notice"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#1e3a5f",
+                cursor: "pointer",
+                fontSize: 18,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
+
         <section style={{ border: "1px solid #d7dde5", borderRadius: 10, background: "#f8fafc", overflow: "hidden" }}>
           {validationOpen ? (
             <div>
@@ -291,15 +773,54 @@ export default function EditorPage() {
   );
 }
 
-function toolbarButton(primary = false): CSSProperties {
+function toolbarButton(primary = false, disabled = false): CSSProperties {
   return {
     border: primary ? "1px solid #0d4678" : "1px solid #cbd5e1",
-    background: primary ? "#0d4678" : "#fff",
-    color: primary ? "#fff" : "#334155",
+    background: disabled ? "#f1f5f9" : primary ? "#0d4678" : "#fff",
+    color: disabled ? "#94a3b8" : primary ? "#fff" : "#334155",
     borderRadius: 10,
     padding: "9px 12px",
-    cursor: "pointer",
+    cursor: disabled ? "not-allowed" : "pointer",
     fontWeight: 700,
+  };
+}
+
+function creationCardStyle(): CSSProperties {
+  return {
+    display: "grid",
+    gap: 8,
+    textAlign: "left",
+    border: "1px solid #cbd5e1",
+    borderRadius: 12,
+    padding: 18,
+    background: "#ffffff",
+    cursor: "pointer",
+    font: "inherit",
+  };
+}
+
+function closeButtonStyle(disabled = false): CSSProperties {
+  return {
+    border: "none",
+    background: "transparent",
+    color: disabled ? "#cbd5e1" : "#64748b",
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontSize: 28,
+    lineHeight: 1,
+    padding: "0 2px",
+  };
+}
+
+function primaryActionButtonStyle(disabled = false): CSSProperties {
+  return {
+    border: "1px solid #0d4678",
+    background: disabled ? "#94a3b8" : "#0d4678",
+    color: "#fff",
+    borderRadius: 10,
+    padding: "9px 16px",
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontWeight: 800,
+    opacity: disabled ? 0.72 : 1,
   };
 }
 

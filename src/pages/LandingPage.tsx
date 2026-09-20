@@ -90,6 +90,7 @@ export default function LandingPage() {
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link
               to="/editor"
+              state={{ openCreateDialog: true }}
               style={{
                 padding: "12px 18px",
                 background: "#0d4678",

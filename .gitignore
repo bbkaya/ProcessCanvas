@@ -6,3 +6,10 @@ src/pages/.DS_Store
 .DS_Store
 src/components/.DS_Store
 src/.DS_Store
+.env
+.env.*
+!.env.example
+
+supabase/functions/.env
+src/.DS_Store
+.DS_Store
