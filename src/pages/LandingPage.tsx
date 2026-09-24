@@ -87,39 +87,51 @@ export default function LandingPage() {
             what value it creates, and how it aligns with organizational goals across four complementary dimensions.
           </p>
 
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link
-              to="/editor"
-              state={{ openCreateDialog: true }}
+          <div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <Link
+                to="/editor"
+                state={{ openCreateDialog: true }}
+                style={{
+                  padding: "12px 18px",
+                  background: "#0d4678",
+                  color: "#fff",
+                  borderRadius: 10,
+                  textDecoration: "none",
+                  fontWeight: 800,
+                }}
+              >
+                Create your Canvas
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById("how");
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                style={{
+                  padding: "12px 18px",
+                  border: "1px solid #cbd5e1",
+                  color: "#0f172a",
+                  borderRadius: 10,
+                  fontWeight: 800,
+                  background: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                See how it works
+              </button>
+            </div>
+            <div
               style={{
-                padding: "12px 18px",
-                background: "#0d4678",
-                color: "#fff",
-                borderRadius: 10,
-                textDecoration: "none",
-                fontWeight: 800,
+                marginTop: 10,
+                color: "#64748b",
+                fontSize: 14,
+                lineHeight: 1.5,
               }}
             >
-              Create your Canvas
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById("how");
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              style={{
-                padding: "12px 18px",
-                border: "1px solid #cbd5e1",
-                color: "#0f172a",
-                borderRadius: 10,
-                fontWeight: 800,
-                background: "#fff",
-                cursor: "pointer",
-              }}
-            >
-              See how it works
-            </button>
+              Start from a blank canvas or generate a first draft from a process description.
+            </div>
           </div>
         </div>
 
@@ -190,13 +202,14 @@ export default function LandingPage() {
         >
           <div style={{ ...cardStyle(), padding: 24 }}>
             <p style={{ lineHeight: 1.8, color: "#334155", marginTop: 0 }}>
-              The Process Canvas offers a single integrated representation in which the central purpose and goal of a
-              process are connected to feasibility, desirability, viability, and responsibility concerns.
+              The Process Canvas offers a single integrated representation in which the purpose, goals, and key activities
+              of a process are considered together with its feasibility, desirability, viability, and responsibility.
             </p>
             <p style={{ lineHeight: 1.8, color: "#334155" }}>
-              In the editor, users can define and refine the core process elements, document strategic assumptions, and
-              export the blueprint as JSON, PNG, or PDF for further use in workshops and design sessions. Exported JSON
-              files can also be imported again for reuse or update.
+              In the editor, users can create a Process Canvas manually or generate an initial draft from a textual
+              description of the process. AI-assisted drafts are intended as a starting point: users review, refine, and
+              complete the suggested elements before using or sharing the canvas. Blueprints can be exported as JSON, PNG,
+              or PDF, and exported JSON files can be imported again for further refinement.
             </p>
             <p style={{ lineHeight: 1.8, color: "#334155", marginBottom: 0 }}>
               The figure on the right shows the full Process Canvas structure and can be enlarged for closer inspection.
