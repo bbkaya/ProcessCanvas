@@ -163,7 +163,7 @@ function SiteFooter() {
     >
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "20px 20px 22px" }}>
         <div style={{ fontWeight: 600, fontSize: 16, color: "#1e293b", marginBottom: 6 }}>
-          Process Canvas ©2025
+          Process Canvas ©{new Date().getFullYear()}
         </div>
         <div
           style={{
